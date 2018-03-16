@@ -2,6 +2,7 @@ package tglambda
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -113,5 +114,5 @@ func (l Lambda) checkUsername(update *tg.Update) error {
 		}
 	}
 
-	return errors.New("username is not in list")
+	return fmt.Errorf("username [%s] is not in list", update.Message.From.Username)
 }
