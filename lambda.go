@@ -1,17 +1,14 @@
 package tglambda
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/bolsunovskyi/lambda_telegram/df"
+	"github.com/bolsunovskyi/lambda_telegram/params"
 	"github.com/bolsunovskyi/lambda_telegram/tg"
 )
 
@@ -20,12 +17,14 @@ const (
 	telegramTokenParam    = "telegram_bot_token"
 	dialogFlowTokenParam  = "dialogflow_token"
 	dialogFlowLangParam   = "dialogflow_lang"
+	paramRefreshTime      = 300
 )
 
 type Lambda struct {
 	sess             *session.Session
 	tgClient         TgClient
 	dfClient         DFClient
+	paramsClient     ParamsClient
 	httpClient       *http.Client
 	allowedUsernames []string
 }
@@ -38,61 +37,51 @@ type DFClient interface {
 	SendMessage(sessionID string, query string) (*df.Response, error)
 }
 
-func (l Lambda) loadParams(names []*string) (map[string]string, error) {
-	ssmClient := ssm.New(l.sess)
+type ParamsClient interface {
+	GetParams(names []string) (map[string]string, error)
+}
 
-	params, err := ssmClient.GetParameters(&ssm.GetParametersInput{
-		Names: names,
+func (l *Lambda) loadConfig() error {
+	pms, err := l.paramsClient.GetParams([]string{
+		allowedUsernamesParam,
+		telegramTokenParam,
+		dialogFlowTokenParam,
+		dialogFlowLangParam,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	res := make(map[string]string)
-	for _, v := range params.Parameters {
-		res[*v.Name] = *v.Value
-	}
+	l.allowedUsernames = strings.Split(pms[allowedUsernamesParam], ",")
+	l.tgClient = tg.MakeClient(pms[telegramTokenParam], l.httpClient)
+	l.dfClient = df.Make(pms[dialogFlowTokenParam], pms[dialogFlowLangParam], l.httpClient)
 
-	if len(res) != len(names) {
-		return nil, errors.New("not enough params")
-	}
-
-	return res, nil
+	return nil
 }
 
 func Make(sess *session.Session, httpClient *http.Client) (*Lambda, error) {
 	lambda := Lambda{
-		sess:       sess,
-		httpClient: httpClient,
+		sess:         sess,
+		paramsClient: params.Make(sess, paramRefreshTime),
+		httpClient:   httpClient,
 	}
-
-	params, err := lambda.loadParams([]*string{
-		aws.String(allowedUsernamesParam),
-		aws.String(telegramTokenParam),
-		aws.String(dialogFlowTokenParam),
-		aws.String(dialogFlowLangParam),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	lambda.allowedUsernames = strings.Split(params[allowedUsernamesParam], ",")
-	lambda.tgClient = tg.MakeClient(params[telegramTokenParam], httpClient)
-	lambda.dfClient = df.Make(params[dialogFlowTokenParam], params[dialogFlowLangParam], httpClient)
 
 	return &lambda, nil
 }
 
-func (l Lambda) Handler(update tg.Update) (interface{}, error) {
-	log.Printf("%+v\n", update)
+func (l *Lambda) Handler(update tg.Update) (interface{}, error) {
+	if err := l.loadConfig(); err != nil {
+		return nil, err
+	}
+
 	if err := l.checkUsername(&update); err != nil {
 		return nil, err
 	}
 
-	if update.Message.Text == "ping" {
-		if err := l.tgClient.SendMessage(update.Message.Chat.ID, "pong"); err != nil {
-			return nil, err
-		}
+	if update.Message.Text == "/start" {
+		return nil, l.saveChat(&update)
+	} else if update.Message.Text == "ping" {
+		return nil, l.tgClient.SendMessage(update.Message.Chat.ID, "pong")
 	} else if update.Message.Text != "" {
 		rsp, err := l.dfClient.SendMessage(strconv.Itoa(update.Message.Chat.ID), update.Message.Text)
 		if err != nil {
