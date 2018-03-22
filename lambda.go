@@ -19,6 +19,7 @@ const (
 	dialogFlowLangParam   = "dialogflow_lang"
 	paramRefreshTime      = 300
 	postbackPasswordParam = "telegram_postback_password"
+	snsTopicUsernames     = "telegram_sns_usernames"
 )
 
 type Lambda struct {
@@ -50,6 +51,7 @@ func (l *Lambda) loadConfig() error {
 		dialogFlowTokenParam,
 		dialogFlowLangParam,
 		postbackPasswordParam,
+		snsTopicUsernames,
 	})
 	if err != nil {
 		return err

@@ -12,7 +12,9 @@ func (l Lambda) PostBackHandler(rq events.APIGatewayProxyRequest) (rsp interface
 		if err != nil {
 			rsp = events.APIGatewayProxyResponse{
 				StatusCode: http.StatusBadRequest,
+				Body:       err.Error(),
 			}
+			err = nil
 		} else {
 			rsp = events.APIGatewayProxyResponse{
 				StatusCode: http.StatusOK,
