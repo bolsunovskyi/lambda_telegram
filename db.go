@@ -1,12 +1,38 @@
 package tglambda
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/bolsunovskyi/lambda_telegram/tg"
 )
+
+func (l Lambda) getChatByUsername(username string) (int, error) {
+	svc := dynamodb.New(l.sess)
+
+	res, err := svc.Scan(&dynamodb.ScanInput{
+		TableName: aws.String("chat"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":username": {
+				S: aws.String(username),
+			},
+		},
+		FilterExpression:     aws.String("username = :username"),
+		ProjectionExpression: aws.String("chat_id, username, user_id"),
+	})
+
+	if err != nil {
+		return 0, err
+	}
+
+	if *res.Count == 0 {
+		return 0, errors.New("username not found")
+	}
+
+	return strconv.Atoi(*res.Items[0]["chat_id"].N)
+}
 
 func (l Lambda) saveChat(update *tg.Update) error {
 	svc := dynamodb.New(l.sess)

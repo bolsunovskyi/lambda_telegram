@@ -11,7 +11,6 @@ import (
 )
 
 func main() {
-	//only for lambda native environment
 	sess, err := session.NewSession()
 	if err != nil {
 		log.Fatalln(err)
@@ -22,5 +21,5 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	lambda.Start(lmb.Handler)
+	lambda.Start(lmb.PostBackHandler)
 }

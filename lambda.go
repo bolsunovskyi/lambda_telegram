@@ -18,6 +18,7 @@ const (
 	dialogFlowTokenParam  = "dialogflow_token"
 	dialogFlowLangParam   = "dialogflow_lang"
 	paramRefreshTime      = 300
+	postbackPasswordParam = "telegram_postback_password"
 )
 
 type Lambda struct {
@@ -27,6 +28,7 @@ type Lambda struct {
 	paramsClient     ParamsClient
 	httpClient       *http.Client
 	allowedUsernames []string
+	params           map[string]string
 }
 
 type TgClient interface {
@@ -47,10 +49,12 @@ func (l *Lambda) loadConfig() error {
 		telegramTokenParam,
 		dialogFlowTokenParam,
 		dialogFlowLangParam,
+		postbackPasswordParam,
 	})
 	if err != nil {
 		return err
 	}
+	l.params = pms
 
 	l.allowedUsernames = strings.Split(pms[allowedUsernamesParam], ",")
 	l.tgClient = tg.MakeClient(pms[telegramTokenParam], l.httpClient)
@@ -69,7 +73,7 @@ func Make(sess *session.Session, httpClient *http.Client) (*Lambda, error) {
 	return &lambda, nil
 }
 
-func (l *Lambda) Handler(update tg.Update) (interface{}, error) {
+func (l *Lambda) WebHookHandler(update tg.Update) (interface{}, error) {
 	if err := l.loadConfig(); err != nil {
 		return nil, err
 	}

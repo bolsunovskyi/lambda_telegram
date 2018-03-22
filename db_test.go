@@ -31,6 +31,26 @@ func makeTestSession() *session.Session {
 	return sess
 }
 
+func TestDB_GetChatByUser(t *testing.T) {
+	sess := makeTestSession()
+	lmb, err := Make(sess, http.DefaultClient)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	chatID, err := lmb.getChatByUsername("bolsunovskyi")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if chatID == 0 {
+		t.Error("wrong chat id")
+		return
+	}
+}
+
 func TestDB_SaveUser(t *testing.T) {
 	sess := makeTestSession()
 	lmb, err := Make(sess, http.DefaultClient)
