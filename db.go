@@ -112,5 +112,5 @@ func (l Lambda) saveChat(update *tg.Update) error {
 		}
 	}
 
-	return l.tgClient.SendMessage(update.Message.Chat.ID, "welcome ;)")
+	return nil
 }
