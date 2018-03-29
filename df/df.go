@@ -71,21 +71,15 @@ func Make(token, lang string, httpClient *http.Client) Client {
 }
 
 func (c Client) SendMessage(sessionID string, query string) (*Response, error) {
-	bts, err := json.Marshal(Request{
+	bts, _ := json.Marshal(Request{
 		Query:     query,
 		Lang:      c.lang,
 		SessionID: sessionID,
 		Version:   protocolVersion,
 	})
-	if err != nil {
-		return nil, err
-	}
 
-	rq, err := http.NewRequest("POST", fmt.Sprintf(`%s/query`, baseURL),
+	rq, _ := http.NewRequest("POST", fmt.Sprintf(`%s/query`, baseURL),
 		bytes.NewReader(bts))
-	if err != nil {
-		return nil, err
-	}
 	rq.Header.Add("Content-Type", "application/json; charset=UTF-8")
 	rq.Header.Add("Accept", "application/json")
 	rq.Header.Add("Authorization", "Bearer "+c.token)
