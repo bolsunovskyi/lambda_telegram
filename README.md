@@ -4,6 +4,9 @@
 3. Upload...
 3.1. Via aws cli: `aws lambda update-function-code --profile self-mike --function-name telegram-bot --zip-file fileb://deployment.zip`
 
+## Config
+- rename .env.default to .env 
+
 ## Run tests
 - `go test ./...`
 
