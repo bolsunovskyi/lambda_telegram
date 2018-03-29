@@ -6,10 +6,6 @@ import (
 )
 
 func (l Lambda) SNSHandler(rq interface{}) (interface{}, error) {
-	if err := l.loadConfig(); err != nil {
-		return nil, err
-	}
-
 	usernames := strings.Split(l.params[snsTopicUsernames], ",")
 	body, _ := json.Marshal(rq)
 

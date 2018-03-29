@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 )
 
-func (l Lambda) PostBackHandler(rq events.APIGatewayProxyRequest) (rsp interface{}, err error) {
+func (l Lambda) PostBackHandler(rq events.APIGatewayProxyRequest) (rsp events.APIGatewayProxyResponse, err error) {
 	defer func() {
 		if err != nil {
 			rsp = events.APIGatewayProxyResponse{
@@ -22,29 +22,30 @@ func (l Lambda) PostBackHandler(rq events.APIGatewayProxyRequest) (rsp interface
 		}
 	}()
 
-	if err := l.loadConfig(); err != nil {
-		return nil, err
-	}
-
 	pwdParam, ok := l.params[postbackPasswordParam]
 	if !ok {
-		return nil, errors.New("password param not found")
+		err = errors.New("password param not found")
+		return
 	}
 
 	pwd, ok := rq.QueryStringParameters["pwd"]
 	if !ok || pwdParam != pwd {
-		return nil, errors.New("wrong password")
+		err = errors.New("wrong password")
+		return
 	}
 
 	username, ok := rq.QueryStringParameters["username"]
 	if !ok {
-		return nil, errors.New("wrong username")
+		err = errors.New("wrong username")
+		return
 	}
 
-	chatID, err := l.getChatByUsername(username)
+	var chatID int
+	chatID, err = l.getChatByUsername(username)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	return nil, l.tgClient.SendMessage(chatID, rq.Body)
+	err = l.tgClient.SendMessage(chatID, rq.Body)
+	return
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/bolsunovskyi/lambda_telegram/df"
 	"github.com/bolsunovskyi/lambda_telegram/params"
 	"github.com/bolsunovskyi/lambda_telegram/tg"
@@ -28,6 +29,7 @@ type Lambda struct {
 	httpClient       *http.Client
 	allowedUsernames []string
 	params           map[string]string
+	db               DB
 }
 
 type TgClient interface {
@@ -40,6 +42,12 @@ type DFClient interface {
 
 type ParamsClient interface {
 	GetParams(names []string) (map[string]string, error)
+}
+
+type DB interface {
+	Scan(input *dynamodb.ScanInput) (*dynamodb.ScanOutput, error)
+	Query(input *dynamodb.QueryInput) (*dynamodb.QueryOutput, error)
+	PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error)
 }
 
 func (l *Lambda) loadConfig() error {
@@ -68,6 +76,11 @@ func Make(sess *session.Session, httpClient *http.Client) (*Lambda, error) {
 		sess:         sess,
 		paramsClient: params.Make(sess, paramRefreshTime),
 		httpClient:   httpClient,
+		db:           dynamodb.New(sess),
+	}
+
+	if err := lambda.loadConfig(); err != nil {
+		return nil, err
 	}
 
 	return &lambda, nil

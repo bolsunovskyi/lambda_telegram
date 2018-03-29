@@ -30,12 +30,9 @@ func (c Client) SendMessage(chatID int, text string) error {
 		"chat_id": {strconv.Itoa(chatID)},
 	}
 
-	rq, err := http.NewRequest("POST", fmt.Sprintf("%s%s/%s", baseURL, c.token, "sendMessage"),
+	rq, _ := http.NewRequest("POST", fmt.Sprintf("%s%s/%s", baseURL, c.token, "sendMessage"),
 		strings.NewReader(sendRequest.Encode()))
 	rq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	if err != nil {
-		return err
-	}
 
 	rsp, err := c.httpClient.Do(rq)
 	if err != nil {

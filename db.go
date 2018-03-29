@@ -8,12 +8,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/bolsunovskyi/lambda_telegram/tg"
 )
 
 func (l Lambda) getChatsByUsernames(usernames []string) ([]int, error) {
 	var rsp []int
-	svc := dynamodb.New(l.sess)
 
 	exps := make(map[string]*dynamodb.AttributeValue)
 	var placeholders []string
@@ -23,7 +21,7 @@ func (l Lambda) getChatsByUsernames(usernames []string) ([]int, error) {
 		placeholders = append(placeholders, placeholder)
 	}
 
-	res, err := svc.Scan(&dynamodb.ScanInput{
+	res, err := l.db.Scan(&dynamodb.ScanInput{
 		TableName:                 aws.String("chat"),
 		ExpressionAttributeValues: exps,
 		FilterExpression:          aws.String(fmt.Sprintf("username IN (%s)", strings.Join(placeholders, ","))),
@@ -51,9 +49,7 @@ func (l Lambda) getChatsByUsernames(usernames []string) ([]int, error) {
 }
 
 func (l Lambda) getChatByUsername(username string) (int, error) {
-	svc := dynamodb.New(l.sess)
-
-	res, err := svc.Scan(&dynamodb.ScanInput{
+	res, err := l.db.Scan(&dynamodb.ScanInput{
 		TableName: aws.String("chat"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":username": {
@@ -75,13 +71,11 @@ func (l Lambda) getChatByUsername(username string) (int, error) {
 	return strconv.Atoi(*res.Items[0]["chat_id"].N)
 }
 
-func (l Lambda) saveChat(update *tg.Update) error {
-	svc := dynamodb.New(l.sess)
-
-	res, err := svc.Query(&dynamodb.QueryInput{
+func (l Lambda) saveChat(chatID, fromID int, username string) error {
+	res, err := l.db.Query(&dynamodb.QueryInput{
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":chat_id": {
-				N: aws.String(strconv.Itoa(update.Message.Chat.ID)),
+				N: aws.String(strconv.Itoa(chatID)),
 			},
 		},
 		KeyConditionExpression: aws.String("chat_id = :chat_id"),
@@ -93,17 +87,17 @@ func (l Lambda) saveChat(update *tg.Update) error {
 	}
 
 	if *res.Count == 0 {
-		if _, err := svc.PutItem(&dynamodb.PutItemInput{
+		if _, err := l.db.PutItem(&dynamodb.PutItemInput{
 			TableName: aws.String("chat"),
 			Item: map[string]*dynamodb.AttributeValue{
 				"chat_id": {
-					N: aws.String(strconv.Itoa(update.Message.Chat.ID)),
+					N: aws.String(strconv.Itoa(chatID)),
 				},
 				"username": {
-					S: aws.String(update.Message.From.Username),
+					S: aws.String(username),
 				},
 				"user_id": {
-					N: aws.String(strconv.Itoa(update.Message.From.ID)),
+					N: aws.String(strconv.Itoa(fromID)),
 				},
 			},
 			ReturnConsumedCapacity: aws.String("NONE"),

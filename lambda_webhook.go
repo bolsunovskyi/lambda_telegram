@@ -5,19 +5,20 @@ import (
 	"strconv"
 
 	"github.com/bolsunovskyi/lambda_telegram/tg"
+	"gopkg.in/go-playground/validator.v9"
 )
 
 func (l *Lambda) WebHookHandler(update tg.Update) (interface{}, error) {
-	if err := l.loadConfig(); err != nil {
+	if err := validator.New().Struct(update); err != nil {
 		return nil, err
 	}
 
-	if err := l.checkUsername(&update); err != nil {
+	if err := l.checkUsername(update.Message.From.Username); err != nil {
 		return nil, err
 	}
 
 	if update.Message.Text == "/start" {
-		if err := l.saveChat(&update); err != nil {
+		if err := l.saveChat(update.Message.Chat.ID, update.Message.From.ID, update.Message.From.Username); err != nil {
 			return nil, err
 		}
 		return nil, l.tgClient.SendMessage(update.Message.Chat.ID, "welcome ;)")
@@ -37,12 +38,12 @@ func (l *Lambda) WebHookHandler(update tg.Update) (interface{}, error) {
 	return nil, nil
 }
 
-func (l Lambda) checkUsername(update *tg.Update) error {
+func (l Lambda) checkUsername(username string) error {
 	for _, u := range l.allowedUsernames {
-		if update.Message.From.Username == u {
+		if username == u {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("username [%s] is not in list", update.Message.From.Username)
+	return fmt.Errorf("username [%s] is not in list", username)
 }
